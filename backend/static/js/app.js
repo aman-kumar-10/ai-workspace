@@ -1,41 +1,69 @@
+/* ===========================================================
+   AI Workspace v2
+   Part 1
+=========================================================== */
+
+/* ===========================
+   DOM Elements
+=========================== */
+
 const chatBox = document.getElementById("chatBox");
+
 const sendBtn = document.getElementById("sendBtn");
+
 const messageInput = document.getElementById("message");
+
 const newChatBtn = document.getElementById("newChatBtn");
 
+const clearChatBtn = document.getElementById("clearChatBtn");
+
+const themeToggle = document.getElementById("themeToggle");
+
+const charCount = document.getElementById("charCount");
+
+/* ===========================
+   State
+=========================== */
+
 let isLoading = false;
+
+/* ===========================
+   Init
+=========================== */
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    autoResize();
+
+    initTheme();
+
+    registerEvents();
+
+});
 
 /* ===========================
    Events
 =========================== */
 
-sendBtn.addEventListener("click", sendMessage);
+function registerEvents() {
 
-newChatBtn.addEventListener("click", startNewChat);
+    sendBtn.addEventListener("click", sendMessage);
 
-messageInput.addEventListener("keydown", function (e) {
+    newChatBtn.addEventListener("click", startNewChat);
 
-    if (e.key === "Enter" && !e.shiftKey) {
+    clearChatBtn.addEventListener("click", clearChat);
 
-        e.preventDefault();
+    themeToggle.addEventListener("click", toggleTheme);
 
-        sendMessage();
+    messageInput.addEventListener("keydown", handleEnter);
 
-    }
+    messageInput.addEventListener("input", () => {
 
-});
+        autoResize();
 
-messageInput.addEventListener("input", autoResize);
+        updateCounter();
 
-/* ===========================
-   Auto Resize
-=========================== */
-
-function autoResize() {
-
-    this.style.height = "60px";
-
-    this.style.height = this.scrollHeight + "px";
+    });
 
 }
 
@@ -47,15 +75,17 @@ async function sendMessage() {
 
     if (isLoading) return;
 
-    const message = messageInput.value.trim();
+    const text = messageInput.value.trim();
 
-    if (!message) return;
+    if (!text) return;
 
-    appendUserMessage(message);
+    appendUserMessage(text);
 
     messageInput.value = "";
 
-    autoResize.call(messageInput);
+    autoResize();
+
+    updateCounter();
 
     showTyping();
 
@@ -70,11 +100,15 @@ async function sendMessage() {
             method: "POST",
 
             headers: {
+
                 "Content-Type": "application/json"
+
             },
 
             body: JSON.stringify({
-                message: message
+
+                message: text
+
             })
 
         });
@@ -83,14 +117,15 @@ async function sendMessage() {
 
         removeTyping();
 
-        // appendAIMessage(data.reply.value.trim());
         appendAIMessage(cleanResponse(data.reply));
 
-    } catch (error) {
+    }
+
+    catch (error) {
 
         removeTyping();
 
-        appendAIMessage("⚠️ Unable to connect to AI.");
+        appendAIMessage("⚠️ Unable to connect.");
 
         console.error(error);
 
@@ -103,30 +138,99 @@ async function sendMessage() {
 }
 
 /* ===========================
+   Enter
+=========================== */
+
+function handleEnter(e){
+
+    if(e.key==="Enter" && !e.shiftKey){
+
+        e.preventDefault();
+
+        sendMessage();
+
+    }
+
+}
+
+/* ===========================
+   Auto Height
+=========================== */
+
+function autoResize(){
+
+    messageInput.style.height="60px";
+
+    messageInput.style.height=messageInput.scrollHeight+"px";
+
+}
+
+/* ===========================
+   Counter
+=========================== */
+
+function updateCounter(){
+
+    charCount.innerText=messageInput.value.length;
+
+}
+
+/* ===========================================================
+   AI Workspace v2
+   Part 2
+=========================================================== */
+
+/* ===========================
    User Message
 =========================== */
 
-function appendUserMessage(text) {
+function appendUserMessage(text){
 
-    chatBox.innerHTML += `
+    hideWelcomeScreen();
+
+    const time=getCurrentTime();
+
+    const html=`
 
     <div class="message user">
 
-        <div class="avatar">
+        <div class="avatar user-avatar">
 
-            👤
+            A
 
         </div>
 
-        <div class="bubble">
+        <div class="message-content">
 
-            ${escapeHtml(text)}
+            <div class="message-header">
+
+                <div class="message-author">
+
+                    You
+
+                </div>
+
+                <div class="message-time">
+
+                    ${time}
+
+                </div>
+
+            </div>
+
+            <div class="bubble">
+
+                ${escapeHtml(text)}
+
+            </div>
 
         </div>
 
     </div>
 
     `;
+
+    chatBox.insertAdjacentHTML("beforeend",html);
 
     scrollBottom();
 
@@ -136,52 +240,57 @@ function appendUserMessage(text) {
    AI Message
 =========================== */
 
-function appendAIMessage(text) {
+function appendAIMessage(text){
 
-    const html = marked.parse(cleanResponse(text));
+    hideWelcomeScreen();
 
-    chatBox.innerHTML += `
-        <div class="message ai">
+    const time=getCurrentTime();
 
-            <div class="avatar">
-                🤖
+    const markdown=marked.parse(text);
+
+    const html=`
+
+    <div class="message ai">
+
+        <div class="avatar ai-avatar">
+
+            <i class="bi bi-stars"></i>
+
+        </div>
+
+        <div class="message-content">
+
+            <div class="message-header">
+
+                <div class="message-author">
+
+                    AI Workspace
+
+                </div>
+
+                <div class="message-time">
+
+                    ${time}
+
+                </div>
+
             </div>
 
             <div class="bubble markdown-body">
-                ${html}
+
+                ${markdown}
+
             </div>
 
-        </div>
-    `;
+            <div class="message-toolbar">
 
-    document.querySelectorAll("pre code").forEach((block) => {
-        hljs.highlightElement(block);
-    });
+                <button class="toolbar-btn copy-btn">
 
-    scrollBottom();
-}
+                    <i class="bi bi-copy"></i>
 
-/* ===========================
-   Typing Indicator
-=========================== */
+                </button>
 
-function showTyping() {
-
-    chatBox.innerHTML += `
-
-    <div
-        class="message ai"
-        id="typingIndicator">
-
-        <div class="avatar">
-
-            🤖
-
-        </div>
-
-        <div class="bubble">
-
-            Thinking...
+            </div>
 
         </div>
 
@@ -189,15 +298,87 @@ function showTyping() {
 
     `;
 
+    chatBox.insertAdjacentHTML("beforeend",html);
+
+    document.querySelectorAll("pre code").forEach((block)=>{
+
+        hljs.highlightElement(block);
+
+    });
+
     scrollBottom();
 
 }
 
-function removeTyping() {
+/* ===========================
+   Welcome Screen
+=========================== */
 
-    const typing = document.getElementById("typingIndicator");
+function hideWelcomeScreen(){
 
-    if (typing) {
+    const welcome=document.querySelector(".welcome-screen");
+
+    if(welcome){
+
+        welcome.remove();
+
+    }
+
+}
+
+/* ===========================
+   Typing
+=========================== */
+
+function showTyping(){
+
+    removeTyping();
+
+    const html=`
+
+    <div
+        class="message ai"
+        id="typingIndicator">
+
+        <div class="avatar ai-avatar">
+
+            <i class="bi bi-stars"></i>
+
+        </div>
+
+        <div class="message-content">
+
+            <div class="bubble">
+
+                <div class="typing">
+
+                    <span></span>
+
+                    <span></span>
+
+                    <span></span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    `;
+
+    chatBox.insertAdjacentHTML("beforeend",html);
+
+    scrollBottom();
+
+}
+
+function removeTyping(){
+
+    const typing=document.getElementById("typingIndicator");
+
+    if(typing){
 
         typing.remove();
 
@@ -209,31 +390,47 @@ function removeTyping() {
    New Chat
 =========================== */
 
-function startNewChat() {
+function startNewChat(){
 
-    chatBox.innerHTML = `
+    chatBox.innerHTML=`
 
-    <div class="message ai">
+        <div class="welcome-screen">
 
-        <div class="avatar">
+            <div class="welcome-icon">
 
-            🤖
+                <i class="bi bi-stars"></i>
+
+            </div>
+
+            <h1>
+
+                Welcome to AI Workspace
+
+            </h1>
+
+            <p>
+
+                Ask me anything to begin a new conversation.
+
+            </p>
 
         </div>
-
-        <div class="bubble">
-
-            Hello Aman 👋
-
-            <br><br>
-
-            What would you like to learn today?
-
-        </div>
-
-    </div>
 
     `;
+
+}
+
+/* ===========================
+   Clear Chat
+=========================== */
+
+function clearChat(){
+
+    if(confirm("Clear current conversation?")){
+
+        startNewChat();
+
+    }
 
 }
 
@@ -241,9 +438,128 @@ function startNewChat() {
    Scroll
 =========================== */
 
-function scrollBottom() {
+function scrollBottom(){
 
-    chatBox.scrollTop = chatBox.scrollHeight;
+    chatBox.scrollTo({
+
+        top:chatBox.scrollHeight,
+
+        behavior:"smooth"
+
+    });
+
+}
+
+
+/* ===========================================================
+   AI Workspace v2
+   Part 3
+=========================================================== */
+
+/* ===========================
+   Theme
+=========================== */
+
+function initTheme(){
+
+    const theme=localStorage.getItem("theme");
+
+    if(theme==="dark"){
+
+        document.body.classList.add("dark");
+
+        themeToggle.innerHTML='<i class="bi bi-sun-fill"></i>';
+
+    }
+
+}
+
+function toggleTheme(){
+
+    document.body.classList.toggle("dark");
+
+    if(document.body.classList.contains("dark")){
+
+        localStorage.setItem("theme","dark");
+
+        themeToggle.innerHTML='<i class="bi bi-sun-fill"></i>';
+
+    }else{
+
+        localStorage.setItem("theme","light");
+
+        themeToggle.innerHTML='<i class="bi bi-moon-stars"></i>';
+
+    }
+
+}
+
+/* ===========================
+   Copy Button
+=========================== */
+
+document.addEventListener("click",(e)=>{
+
+    const btn=e.target.closest(".copy-btn");
+
+    if(!btn) return;
+
+    const bubble=btn.closest(".message-content").querySelector(".bubble");
+
+    const text=bubble.innerText;
+
+    navigator.clipboard.writeText(text);
+
+    btn.innerHTML='<i class="bi bi-check-lg"></i>';
+
+    setTimeout(()=>{
+
+        btn.innerHTML='<i class="bi bi-copy"></i>';
+
+    },1500);
+
+});
+
+/* ===========================
+   Current Time
+=========================== */
+
+function getCurrentTime(){
+
+    return new Date().toLocaleTimeString([],{
+
+        hour:"2-digit",
+
+        minute:"2-digit"
+
+    });
+
+}
+
+/* ===========================
+   Clean Gemini Response
+=========================== */
+
+function cleanResponse(text){
+
+    return text
+
+        .trim()
+
+        // Remove 3+ blank lines
+        .replace(/\n{3,}/g,"\n\n")
+
+        // Remove spaces at line start
+        .replace(/^[ \t]+/gm,"")
+
+        // Remove trailing spaces
+        .replace(/[ \t]+$/gm,"")
+
+        // Remove multiple spaces
+        .replace(/[ \t]{2,}/g," ")
+
+        // Remove zero-width spaces
+        .replace(/\u200B/g,"");
 
 }
 
@@ -251,27 +567,339 @@ function scrollBottom() {
    Escape HTML
 =========================== */
 
-function escapeHtml(text) {
+function escapeHtml(text){
 
-    return text
+    const div=document.createElement("div");
 
-        .replace(/&/g, "&amp;")
+    div.innerText=text;
 
-        .replace(/</g, "&lt;")
-
-        .replace(/>/g, "&gt;")
-
-        .replace(/"/g, "&quot;")
-
-        .replace(/'/g, "&#039;");
+    return div.innerHTML;
 
 }
 
+/* ===========================
+   Notification
+=========================== */
 
-function cleanResponse(text) {
+function toast(message){
 
-    return text
-        .trim()
-        .replace(/\n{3,}/g, "\n\n");
+    const toast=document.createElement("div");
+
+    toast.className="toast-msg";
+
+    toast.innerText=message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(()=>{
+
+        toast.classList.add("show");
+
+    },100);
+
+    setTimeout(()=>{
+
+        toast.classList.remove("show");
+
+        setTimeout(()=>{
+
+            toast.remove();
+
+        },300);
+
+    },1800);
 
 }
+
+/* ===========================
+   Keyboard Shortcut
+=========================== */
+
+document.addEventListener("keydown",(e)=>{
+
+    if(e.ctrlKey && e.key.toLowerCase()==="l"){
+
+        e.preventDefault();
+
+        clearChat();
+
+    }
+
+});
+
+/* ===========================
+   Prompt Cards
+=========================== */
+
+document.addEventListener("click",(e)=>{
+
+    const card=e.target.closest(".prompt-card");
+
+    if(!card) return;
+
+    const text=card.innerText.trim();
+
+    messageInput.value=text;
+
+    updateCounter();
+
+    autoResize();
+
+    messageInput.focus();
+
+});
+
+
+/* ===========================================================
+   AI Workspace v2
+   Part 4
+=========================================================== */
+
+/* ===========================
+   AI Streaming Effect
+=========================== */
+
+async function typeWriter(container, text, speed = 8) {
+
+    const markdownBody = container.querySelector(".markdown-body");
+
+    let current = "";
+
+    const words = text.split(" ");
+
+    for (let i = 0; i < words.length; i++) {
+
+        current += words[i] + " ";
+
+        markdownBody.innerHTML = marked.parse(current);
+
+        markdownBody.querySelectorAll("pre code").forEach((block) => {
+
+            hljs.highlightElement(block);
+
+        });
+
+        scrollBottom();
+
+        await new Promise(resolve => setTimeout(resolve, speed));
+
+    }
+
+}
+
+/* ===========================
+   Better AI Message
+=========================== */
+
+async function appendStreamingAIMessage(text) {
+
+    hideWelcomeScreen();
+
+    const time = getCurrentTime();
+
+    const html = `
+
+    <div class="message ai">
+
+        <div class="avatar ai-avatar">
+
+            <i class="bi bi-stars"></i>
+
+        </div>
+
+        <div class="message-content">
+
+            <div class="message-header">
+
+                <div class="message-author">
+
+                    AI Workspace
+
+                </div>
+
+                <div class="message-time">
+
+                    ${time}
+
+                </div>
+
+            </div>
+
+            <div class="bubble markdown-body">
+
+            </div>
+
+            <div class="message-toolbar">
+
+                <button class="toolbar-btn copy-btn">
+
+                    <i class="bi bi-copy"></i>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    `;
+
+    chatBox.insertAdjacentHTML("beforeend", html);
+
+    const message = chatBox.lastElementChild;
+
+    await typeWriter(message, cleanResponse(text));
+
+}
+
+/* ===========================
+   API Wrapper
+=========================== */
+
+async function askAI(prompt){
+
+    const response = await fetch("/chat",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+            message:prompt
+        })
+
+    });
+
+    if(!response.ok){
+
+        throw new Error("Server Error");
+
+    }
+
+    return await response.json();
+
+}
+
+/* ===========================
+   Replace Old sendMessage()
+=========================== */
+
+async function sendMessage(){
+
+    if(isLoading) return;
+
+    const text = messageInput.value.trim();
+
+    if(!text) return;
+
+    appendUserMessage(text);
+
+    messageInput.value="";
+
+    autoResize();
+
+    updateCounter();
+
+    showTyping();
+
+    isLoading=true;
+
+    sendBtn.disabled=true;
+
+    const startTime = performance.now();
+
+    try{
+
+        const data = await askAI(text);
+
+        removeTyping();
+
+        await appendStreamingAIMessage(data.reply);
+
+        const endTime = performance.now();
+
+        console.log(
+
+            "Response Time:",
+
+            ((endTime-startTime)/1000).toFixed(2),
+
+            "sec"
+
+        );
+
+    }
+
+    catch(error){
+
+        removeTyping();
+
+        appendAIMessage(
+
+            "⚠️ Something went wrong while contacting the AI."
+
+        );
+
+        console.error(error);
+
+    }
+
+    isLoading=false;
+
+    sendBtn.disabled=false;
+
+}
+
+/* ===========================
+   Future Hooks
+=========================== */
+
+function saveChatHistory(){
+
+    // SQLite Later
+
+}
+
+function loadChatHistory(){
+
+    // SQLite Later
+
+}
+
+function renameChat(){
+
+    // SQLite Later
+
+}
+
+function deleteChat(){
+
+    // SQLite Later
+
+}
+
+/* ===========================
+   App Ready
+=========================== */
+
+console.log(
+`
+=========================================
+
+        AI Workspace v2
+
+ Backend : FastAPI
+
+ AI      : Google Gemini
+
+ Frontend: HTML/CSS/JS
+
+ Status  : Ready
+
+=========================================
+`
+);
+
